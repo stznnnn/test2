@@ -107,12 +107,13 @@ sudo named-checkzone 0.0.10.in-addr.arpa /var/named/0.0.10.rev
 
 # Запуск BIND
 sudo systemctl enable --now named
-sudo firewall-cmd --add-service=dns --permanent
-sudo firewall-cmd --reload
+sudo systemctl stop firewalld
+sudo systemctl disable firewalld
+
 
 # ===== 3. Настройка MariaDB =====
 echo "Настраиваем MariaDB..."
-sudo yum install -y mariadb-server
+sudo dnf install -y mariadb mariadb-server zabbix-server-mysql zabbix-agent
 sudo systemctl enable --now mariadb
 
 # Создаем БД

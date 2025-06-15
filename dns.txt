@@ -1,0 +1,46 @@
+options {
+    listen-on port 53 { 10.0.0.17; };
+    directory       "/var/named";
+    dump-file       "/var/named/data/cache_dump.db";
+    statistics-file "/var/named/data/named_stats.txt";
+    memstatistics-file "/var/named/data/named_mem_stats.txt";
+    allow-query     { any; };
+    forward first;
+    forwarders { 8.8.8.8; };
+    recursion yes;
+    dnssec-validation yes;
+    managed-keys-directory "/var/named/dynamic";
+    pid-file "/run/named/named.pid";
+    session-keyfile "/run/named/session.key";
+};
+
+logging {
+    channel default_debug {
+        file "data/named.run";
+        severity dynamic;
+    };
+};
+
+zone "." IN {
+    type hint;
+    file "named.ca";
+};
+
+zone "mopc.com" {
+    type master;
+    file "/var/named/mopc.com.zone";
+    allow-transfer { 10.0.0.18; };
+    allow-update { 10.0.0.18; };
+    notify yes;
+};
+
+zone "0.0.10.in-addr.arpa" {
+    type master;
+    file "/var/named/0.0.10.rev";
+    allow-transfer { 10.0.0.18; };
+    allow-update { 10.0.0.18; };
+    notify yes;    
+};
+
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";

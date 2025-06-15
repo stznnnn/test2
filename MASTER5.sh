@@ -110,13 +110,25 @@ sudo systemctl enable --now named
 sudo systemctl stop firewalld
 sudo systemctl disable firewalld
 
+# ===== 3. ОФИЦИАЛЬНАЯ установка MariaDB для RedOS =====
+echo "Устанавливаем MariaDB по официальному руководству..."
 
-# ===== 3. Настройка MariaDB =====
-echo "Настраиваем MariaDB..."
-sudo dnf install -y mariadb mariadb-server zabbix-server-mysql zabbix-agent
+# Добавляем репозиторий MariaDB
+sudo tee /etc/yum.repos.d/MariaDB.repo <<EOF
+[mariadb]
+name=MariaDB
+baseurl=http://yum.mariadb.org/10.1/centos7-amd64
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1
+EOF
+
+# Устанавливаем MariaDB
+sudo yum install -y MariaDB-server MariaDB-client
+
+# Запускаем службу
 sudo systemctl enable --now mariadb
 
-# Создаем БД
+# Настраиваем базу данных
 sudo mysql -e "CREATE DATABASE mopc_db;"
 sudo mysql -e "CREATE USER 'mopc_user'@'localhost' IDENTIFIED BY 'password';"
 sudo mysql -e "GRANT ALL PRIVILEGES ON mopc_db.* TO 'mopc_user'@'localhost';"

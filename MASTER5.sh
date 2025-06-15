@@ -3,7 +3,7 @@
 # ===== 1. Настройка Keepalived (MASTER) =====
 echo "Настраиваем Keepalived..."
 sudo yum install -y keepalived
-
+sudo dnf install httpd
 sudo tee /etc/keepalived/keepalived.conf <<EOF
 ! Configuration File for keepalived
 
@@ -29,6 +29,81 @@ EOF
 
 sudo systemctl enable --now keepalived
 sudo systemctl restart keepalived
+
+
+# ===== 4. Настройка веб-сайта =====
+echo "Настраиваем веб-сервер..."
+sudo yum install -y httpd php php-mysqlnd
+sudo systemctl enable --now httpd
+
+# Контент сайта
+sudo tee /var/www/html/index.php <<EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MOPC Company</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #result { margin-top: 20px; padding: 20px; border: 1px solid #ccc; max-width: 500px; margin-left: auto; margin-right: auto; }
+    </style>
+</head>
+<body>
+    <h1>Welcome to MOPC</h1>
+    <button onclick="loadData()">Show Company Info</button>
+    <div id="result"></div>
+
+    <script>
+        function loadData() {
+            fetch('/get_data.php')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('result').innerHTML = data;
+                });
+        }
+    </script>
+</body>
+</html>
+EOF
+
+# PHP-скрипт
+sudo tee /var/www/html/get_data.php <<EOF
+<?php
+\$conn = new mysqli('localhost', 'mopc_user', 'password', 'mopc_db');
+if (\$conn->connect_error) {
+    die("Connection error: " . \$conn->connect_error);
+}
+
+\$sql = "SELECT * FROM company_info";
+\$result = \$conn->query(\$sql);
+
+if (\$result->num_rows > 0) {
+    \$row = \$result->fetch_assoc();
+    echo "<strong>Company creator:</strong> " . \$row['creator_name'] . "<br>";
+    echo "<strong>Phone:</strong> " . \$row['phone'] . "<br>";
+    echo "<strong>Email:</strong> " . \$row['email'];
+} else {
+    echo "Data not found!";
+}
+\$conn->close();
+?>
+EOF
+
+# Виртуальный хост
+sudo tee /etc/httpd/conf.d/mopc.conf <<EOF
+<VirtualHost *:80>
+    ServerName mopc.com
+    DocumentRoot /var/www/html
+    <Directory /var/www/html>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+
+# Добавляем запись в hosts
+echo "10.0.0.99 mopc.com" | sudo tee -a /etc/hosts
+sudo systemctl restart httpd
 
 # ===== 2. Настройка DNS (BIND9) =====
 echo "Настраиваем DNS сервер..."
@@ -110,79 +185,7 @@ sudo systemctl enable --now named
 sudo systemctl stop firewalld
 sudo systemctl disable firewalld
 
-# ===== 4. Настройка веб-сайта =====
-echo "Настраиваем веб-сервер..."
-sudo yum install -y httpd php php-mysqlnd
-sudo systemctl enable --now httpd
 
-# Контент сайта
-sudo tee /var/www/html/index.php <<EOF
-<!DOCTYPE html>
-<html>
-<head>
-    <title>MOPC Company</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-        #result { margin-top: 20px; padding: 20px; border: 1px solid #ccc; max-width: 500px; margin-left: auto; margin-right: auto; }
-    </style>
-</head>
-<body>
-    <h1>Welcome to MOPC</h1>
-    <button onclick="loadData()">Show Company Info</button>
-    <div id="result"></div>
-
-    <script>
-        function loadData() {
-            fetch('/get_data.php')
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('result').innerHTML = data;
-                });
-        }
-    </script>
-</body>
-</html>
-EOF
-
-# PHP-скрипт
-sudo tee /var/www/html/get_data.php <<EOF
-<?php
-\$conn = new mysqli('localhost', 'mopc_user', 'password', 'mopc_db');
-if (\$conn->connect_error) {
-    die("Connection error: " . \$conn->connect_error);
-}
-
-\$sql = "SELECT * FROM company_info";
-\$result = \$conn->query(\$sql);
-
-if (\$result->num_rows > 0) {
-    \$row = \$result->fetch_assoc();
-    echo "<strong>Company creator:</strong> " . \$row['creator_name'] . "<br>";
-    echo "<strong>Phone:</strong> " . \$row['phone'] . "<br>";
-    echo "<strong>Email:</strong> " . \$row['email'];
-} else {
-    echo "Data not found!";
-}
-\$conn->close();
-?>
-EOF
-
-# Виртуальный хост
-sudo tee /etc/httpd/conf.d/mopc.conf <<EOF
-<VirtualHost *:80>
-    ServerName mopc.com
-    DocumentRoot /var/www/html
-    <Directory /var/www/html>
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-EOF
-
-# Добавляем запись в hosts
-echo "10.0.0.99 mopc.com" | sudo tee -a /etc/hosts
-sudo systemctl restart httpd
 
 # ===== Завершение =====
 echo "

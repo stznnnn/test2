@@ -110,61 +110,6 @@ sudo systemctl enable --now named
 sudo systemctl stop firewalld
 sudo systemctl disable firewalld
 
-#!/bin/bash
-
-# ===== 1. Настройка MariaDB для RedOS (исправленная) =====
-echo "Устанавливаем MariaDB..."
-sudo yum remove -y mariadb-server mariadb-client 2>/dev/null  # Удаляем старые версии
-
-# Добавляем официальный репозиторий MariaDB для RedOS 8
-sudo tee /etc/yum.repos.d/MariaDB.repo <<'EOF'
-[mariadb]
-name = MariaDB
-baseurl = https://mirror.mariadb.org/yum/10.11/rhel8-amd64
-gpgkey = https://mirror.mariadb.org/yum/RPM-GPG-KEY-MariaDB
-gpgcheck = 1
-module_hotfixes = 1
-EOF
-
-# Импортируем GPG-ключ
-sudo rpm --import https://mirror.mariadb.org/yum/RPM-GPG-KEY-MariaDB
-
-# Устанавливаем MariaDB
-sudo yum clean all
-sudo yum makecache
-sudo yum install -y MariaDB-server MariaDB-client
-
-# Запускаем службу
-sudo systemctl enable --now mariadb
-
-# Проверяем установку
-if ! command -v mysql &>/dev/null; then
-    echo "Ошибка: MariaDB не установилась корректно"
-    exit 1
-fi
-
-# ===== 2. Настройка базы данных =====
-echo "Настраиваем базу данных..."
-
-# Создаем базу данных и пользователя
-sudo mysql -e "CREATE DATABASE IF NOT EXISTS mopc_db;"
-sudo mysql -e "CREATE USER IF NOT EXISTS 'mopc_user'@'localhost' IDENTIFIED BY 'password';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON mopc_db.* TO 'mopc_user'@'localhost';"
-sudo mysql -e "FLUSH PRIVILEGES;"
-
-# Создаем таблицу и добавляем данные
-sudo mysql mopc_db -e "CREATE TABLE IF NOT EXISTS company_info (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    creator_name VARCHAR(100) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    email VARCHAR(100) NOT NULL
-);"
-
-sudo mysql mopc_db -e "INSERT INTO company_info (creator_name, phone, email) VALUES 
-    ('Derezin Stepan Yurievich', '89999999999', 'admin@mopc.ru');"
-
-echo "MariaDB успешно настроена"
-
 # ===== 4. Настройка веб-сайта =====
 echo "Настраиваем веб-сервер..."
 sudo yum install -y httpd php php-mysqlnd

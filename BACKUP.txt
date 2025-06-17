@@ -1,0 +1,46 @@
+! Configuration File for keepalived
+
+global_defs {
+    router_id LVS_BACKUP
+}
+
+vrrp_script chk_httpd {
+    script "/usr/bin/systemctl is-active httpd"
+    interval 2
+    weight 50
+}
+
+vrrp_script chk_mariadb {
+    script "/usr/bin/systemctl is-active mariadb"
+    interval 2
+    weight 40
+}
+
+vrrp_script chk_named {
+    script "/usr/bin/systemctl is-active named"
+    interval 2
+    weight 30
+}
+
+vrrp_instance VI_1 {
+    state BACKUP
+    interface ens3
+    virtual_router_id 51
+    priority 100  # Низкий приоритет для BACKUP
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass m0pc_secure
+    }
+    virtual_ipaddress {
+        10.0.0.99/24 dev ens3
+    }
+    track_script {
+        chk_httpd
+        chk_mariadb
+        chk_named
+    }
+    notify_master "/usr/local/bin/keepalived_notify.sh master"
+    notify_backup "/usr/local/bin/keepalived_notify.sh backup"
+    notify_fault "/usr/local/bin/keepalived_notify.sh fault"
+}
